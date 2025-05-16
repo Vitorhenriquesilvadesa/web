@@ -1,0 +1,52 @@
+.board {
+  position: relative;
+  display: grid;
+  grid-template-columns: calc(0.25 * var(--tile-size)) calc(
+      8 * var(--tile-size)
+    );
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(8, var(--tile-size));
+  grid-template-rows: repeat(8, var(--tile-size));
+  width: calc(8 * var(--tile-size));
+}
+
+.tile {
+  position: relative;
+}
+
+.tile--light {
+  background: var(--light-tile);
+}
+
+.tile--dark {
+  background: var(--dark-tile);
+}
+
+.highlight:after {
+  content: "";
+  display: block;
+  position: absolute;
+  width: calc(0.3 * var(--tile-size));
+  height: calc(0.3 * var(--tile-size));
+  background-color: var(--highlight);
+  border-radius: 50%;
+  left: 35%;
+  top: 35%;
+}
+
+.attacking:after {
+  content: "";
+  display: block;
+  position: absolute;
+  width: calc(var(--tile-size) - 12px);
+  height: calc(var(--tile-size) - 12px);
+  border: 6px solid var(--highlight);
+  border-radius: 50%;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+}

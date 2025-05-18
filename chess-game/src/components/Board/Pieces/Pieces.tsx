@@ -1,14 +1,23 @@
 import "./Pieces.css";
 import Piece from "./Piece.tsx";
 import { useRef } from "react";
-import { copyPosition } from "../../helper.tsx";
-import { useAppContext } from "../../context/Context.tsx";
-import type { Action, AppState } from "../../constants.tsx";
+import { useAppContext } from "../../../context/Context.tsx";
+import type { Action, AppState } from "../../../constants.tsx";
 import {
   clearCandidateMoves,
   makeNewMove,
-} from "../../reducer/actions/move.tsx";
-import { arbiter } from "../../arbiter/arbiter.tsx";
+} from "../../../reducer/actions/move.tsx";
+import { arbiter } from "../../../arbiter/arbiter.tsx";
+import { openPromotion } from "../../../reducer/actions/popup.tsx";
+import {
+  getCastleDirections,
+  getCastlingMoves,
+} from "../../../arbiter/getMoves.tsx";
+import {
+  detectCheckMate,
+  detectStalemate,
+  updateCastling,
+} from "../../../reducer/actions/game.tsx";
 
 export default function Pieces() {
   const ref = useRef<HTMLDivElement>(null);
@@ -31,14 +40,42 @@ export default function Pieces() {
     return { x, y };
   }
 
+  function openPromotionBox(rank: number, file: number, x: number, y: number) {
+    dispatch(openPromotion(rank, file, x, y));
+  }
+
+  function updateCastlingState(piece: string, rank: number, file: number) {
+    const direction = getCastleDirections(
+      appState.castleDirection,
+      piece,
+      rank,
+      file
+    );
+
+    if (direction) {
+      dispatch(updateCastling(direction));
+    }
+  }
+
   function move(event: React.DragEvent<HTMLDivElement>) {
     const { x, y } = calculateCoords(event);
     const data = event.dataTransfer.getData("text/plain");
     const [piece, rankStr, fileStr] = data.split(",");
     const rank = parseInt(rankStr, 10);
     const file = parseInt(fileStr, 10);
+    const opponent = piece.startsWith("b") ? "w" : "b";
+    const castleDirection = piece.startsWith("b")
+      ? appState.castleDirection.w
+      : appState.castleDirection.b;
 
     if (appState.candidateMoves.find((m) => m[0] === x && m[1] === y)) {
+      if ((piece === "wp" && x === 7) || (piece == "bp" && x === 0)) {
+        openPromotionBox(rank, file, x, y);
+      }
+      if (piece.endsWith("r") || piece.endsWith("k")) {
+        updateCastlingState(piece, rank, file);
+      }
+
       const newPosition = arbiter.performMove(
         currentPosition,
         piece,
@@ -48,6 +85,12 @@ export default function Pieces() {
         y
       );
       dispatch(makeNewMove({ newPosition, candidateMoves: [] }));
+
+      if (arbiter.isStalemate(newPosition, opponent, castleDirection)) {
+        dispatch(detectStalemate());
+      } else if (arbiter.isCheckMate(newPosition, opponent, castleDirection)) {
+        dispatch(detectCheckMate(piece[0]));
+      }
     }
 
     dispatch(clearCandidateMoves());

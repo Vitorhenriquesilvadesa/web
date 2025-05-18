@@ -1,3 +1,4 @@
+import type { CastleDirection } from "../constants";
 import {
   getBishopMoves,
   getKingMoves,
@@ -6,6 +7,10 @@ import {
   getPawnMoves,
   getQueenMoves,
   getRookMoves,
+  getCastlingMoves,
+  getKingPosition,
+  getPieces,
+  type EnemyPiece as EnemyPiece,
 } from "./getMoves";
 import { movePawn, movePiece } from "./move";
 
@@ -51,27 +56,147 @@ export const arbiter = {
   },
 
   getValidMoves: function (
-    currentPosition: string[][],
+    position: string[][],
     prevPosition: string[][],
+    castleDirection: CastleDirection,
     piece: string,
     rank: number,
     file: number
   ): number[][] {
-    let moves = this.getRegularMoves(
-      currentPosition,
-      prevPosition,
-      piece,
-      rank,
-      file
-    );
+    let moves = this.getRegularMoves(position, prevPosition, piece, rank, file);
+    const notInCheckMoves: number[][] = [];
 
     if (piece.endsWith("p")) {
       moves = [
         ...moves,
-        ...getPawnCaptures(currentPosition, prevPosition, piece, rank, file),
+        ...getPawnCaptures(position, prevPosition, piece, rank, file),
+      ];
+    }
+    if (piece.endsWith("k")) {
+      moves = [
+        ...moves,
+        ...getCastlingMoves(position, castleDirection, piece, rank, file),
       ];
     }
 
-    return moves;
+    moves.forEach(([x, y]: number[]) => {
+      const positionAfterMove = this.performMove(
+        position,
+        piece,
+        rank,
+        file,
+        x,
+        y
+      );
+
+      if (!this.isPlayerInCheck(positionAfterMove, position, piece[0])) {
+        notInCheckMoves.push([x, y]);
+      }
+    });
+
+    return notInCheckMoves;
+  },
+
+  isPlayerInCheck: function (
+    positionAfterMove: string[][],
+    position: string[][],
+    player: string
+  ) {
+    const enemy = player.startsWith("w") ? "b" : "w";
+    let kingPos = getKingPosition(positionAfterMove, player);
+    const enemyPieces: EnemyPiece[] = getPieces(positionAfterMove, enemy);
+
+    const enemyMoves: number[][] = enemyPieces.reduce<number[][]>(
+      (acc, p): number[][] =>
+        (acc = [
+          ...acc,
+          ...(p.piece.endsWith("p")
+            ? getPawnCaptures(
+                positionAfterMove,
+                position,
+                p.piece,
+                p.rank,
+                p.file
+              )
+            : this.getRegularMoves(
+                positionAfterMove,
+                position,
+                p.piece,
+                p.rank,
+                p.file
+              )),
+        ]),
+      []
+    );
+
+    if (
+      enemyMoves.some(
+        ([x, y]: number[]) => kingPos[0] === x && kingPos[1] === y
+      )
+    ) {
+      return true;
+    }
+
+    return false;
+  },
+
+  isStalemate: function (
+    position: string[][],
+    player: string,
+    castleDirection: CastleDirection
+  ) {
+    const isInCheck = this.isPlayerInCheck(position, [], player);
+
+    if (isInCheck) {
+      return false;
+    }
+
+    const pieces = getPieces(position, player);
+    const moves: number[][] = pieces.reduce<number[][]>(
+      (acc: number[][], p) =>
+        (acc = [
+          ...acc,
+          ...this.getValidMoves(
+            position,
+            [],
+            castleDirection,
+            p.piece,
+            p.rank,
+            p.file
+          ),
+        ]),
+      []
+    );
+
+    return !isInCheck && moves.length === 0;
+  },
+
+  isCheckMate: function (
+    position: string[][],
+    player: string,
+    castleDirection: CastleDirection
+  ) {
+    const isInCheck = this.isPlayerInCheck(position, [], player);
+
+    if (!isInCheck) return false;
+
+    const pieces = getPieces(position, player);
+    const moves = pieces.reduce<number[][]>(
+      (acc, p) =>
+        (acc = [
+          ...acc,
+          ...this.getValidMoves(
+            position,
+            [],
+            castleDirection,
+            p.piece,
+            p.rank,
+            p.file
+          ),
+        ]),
+      []
+    );
+
+    return isInCheck && moves.length === 0;
   },
 };

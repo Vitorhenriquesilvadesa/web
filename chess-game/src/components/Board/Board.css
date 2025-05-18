@@ -37,6 +37,18 @@
   top: 35%;
 }
 
+.checked:after {
+  content: "";
+  display: block;
+  position: absolute;
+  width: var(--tile-size);
+  height: var(--tile-size);
+  background-color: var(--check);
+  border-radius: 20%;
+  left: 0;
+  top: 0;
+}
+
 .attacking:after {
   content: "";
   display: block;

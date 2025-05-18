@@ -1,3 +1,6 @@
+import { CastleDirection, type AllowedCastleDirections } from "../constants";
+import { arbiter } from "./arbiter";
+
 export function getRookMoves(
   currentPosition: string[][],
   piece: string,
@@ -119,8 +122,6 @@ export function getPawnCaptures(
 
   if (!(x > 7 || x < 0 || y > 7 || y < 0)) {
     if (prevPosition !== undefined) {
-      console.log("dir", dir, "X", x, "Y", y);
-
       if ((dir === 1 && x === 4) || (dir === -1 && x === 3)) {
         adjacentFiles.forEach((f) => {
           if (
@@ -256,4 +257,196 @@ export function getKnightMoves(
   });
 
   return moves;
+}
+
+export function getCastlingMoves(
+  position: string[][],
+  castleDirection: CastleDirection,
+  piece: string,
+  rank: number,
+  file: number
+) {
+  const moves: number[][] = [];
+
+  if (
+    file !== 4 ||
+    rank % 7 !== 0 ||
+    castleDirection === CastleDirection.none
+  ) {
+    return moves;
+  }
+
+  if (piece.startsWith("w")) {
+    if (arbiter.isPlayerInCheck(position, [], "w")) {
+      return moves;
+    }
+    if (
+      [CastleDirection.left, CastleDirection.both].includes(castleDirection) &&
+      !position[0][3] &&
+      !position[0][2] &&
+      !position[0][1] &&
+      position[0][0] === "wr" &&
+      !arbiter.isPlayerInCheck(
+        arbiter.performMove(position, piece, rank, file, 0, 3),
+        position,
+        "w"
+      ) &&
+      !arbiter.isPlayerInCheck(
+        arbiter.performMove(position, piece, rank, file, 0, 2),
+        position,
+        "w"
+      )
+    ) {
+      moves.push([0, 2]);
+    }
+    if (
+      [CastleDirection.right, CastleDirection.both].includes(castleDirection) &&
+      !position[0][5] &&
+      !position[0][6] &&
+      position[0][7] === "wr" &&
+      !arbiter.isPlayerInCheck(
+        arbiter.performMove(position, piece, rank, file, 0, 5),
+        position,
+        "w"
+      ) &&
+      !arbiter.isPlayerInCheck(
+        arbiter.performMove(position, piece, rank, file, 0, 6),
+        position,
+        "w"
+      )
+    ) {
+      moves.push([0, 6]);
+    }
+  } else {
+    if (arbiter.isPlayerInCheck(position, [], "b")) {
+      return moves;
+    }
+
+    if (
+      [CastleDirection.left, CastleDirection.both].includes(castleDirection) &&
+      !position[7][3] &&
+      !position[7][2] &&
+      !position[7][1] &&
+      position[7][0] === "br" &&
+      !arbiter.isPlayerInCheck(
+        arbiter.performMove(position, piece, rank, file, 7, 3),
+        position,
+        "b"
+      ) &&
+      !arbiter.isPlayerInCheck(
+        arbiter.performMove(position, piece, rank, file, 7, 2),
+        position,
+        "b"
+      )
+    ) {
+      moves.push([7, 2]);
+    }
+    if (
+      [CastleDirection.right, CastleDirection.both].includes(castleDirection) &&
+      !position[7][5] &&
+      !position[7][6] &&
+      position[7][7] === "br" &&
+      !arbiter.isPlayerInCheck(
+        arbiter.performMove(position, piece, rank, file, 7, 5),
+        position,
+        "b"
+      ) &&
+      !arbiter.isPlayerInCheck(
+        arbiter.performMove(position, piece, rank, file, 7, 6),
+        position,
+        "b"
+      )
+    ) {
+      moves.push([7, 6]);
+    }
+  }
+
+  return moves;
+}
+
+export function getCastleDirections(
+  castleDirections: AllowedCastleDirections,
+  piece: string,
+  rank: number,
+  file: number
+) {
+  const direction = piece.startsWith("w")
+    ? castleDirections.w
+    : castleDirections.b;
+
+  if (piece.endsWith("k")) {
+    return CastleDirection.none;
+  }
+
+  if (file === 0 && rank === 0) {
+    if (direction === CastleDirection.both) {
+      return CastleDirection.right;
+    }
+
+    if (direction === CastleDirection.left) {
+      return CastleDirection.none;
+    }
+  }
+  if (file === 7 && rank === 0) {
+    if (direction === CastleDirection.both) {
+      return CastleDirection.left;
+    }
+
+    if (direction === CastleDirection.right) {
+      return CastleDirection.none;
+    }
+  }
+
+  if (file === 0 && rank === 7) {
+    if (direction === CastleDirection.both) {
+      return CastleDirection.right;
+    }
+
+    if (direction === CastleDirection.left) {
+      return CastleDirection.none;
+    }
+  }
+  if (file === 7 && rank === 7) {
+    if (direction === CastleDirection.both) {
+      return CastleDirection.left;
+    }
+
+    if (direction === CastleDirection.right) {
+      return CastleDirection.none;
+    }
+  }
+}
+
+export function getKingPosition(position: string[][], player: string) {
+  let kingPos: number[] = [];
+
+  position.forEach((rank, x) => {
+    rank.forEach((file, y) => {
+      if (position[x][y].startsWith(player) && position[x][y].endsWith("k")) {
+        kingPos = [x, y];
+      }
+    });
+  });
+
+  return kingPos;
+}
+
+export type EnemyPiece = {
+  piece: string;
+  file: number;
+  rank: number;
+};
+
+export function getPieces(position: string[][], enemy: string) {
+  const enemyPieces: EnemyPiece[] = [];
+
+  position.forEach((rank, x) => {
+    rank.forEach((file, y) => {
+      if (position[x][y].startsWith(enemy)) {
+        enemyPieces.push({ piece: position[x][y], rank: x, file: y });
+      }
+    });
+  });
+
+  return enemyPieces;
 }

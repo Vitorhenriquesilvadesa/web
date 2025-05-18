@@ -1,7 +1,7 @@
-import { arbiter } from "../../arbiter/arbiter";
-import { getRookMoves } from "../../arbiter/getMoves";
-import { useAppContext } from "../../context/Context";
-import { generateCandidateMoves } from "../../reducer/actions/move";
+import { arbiter } from "../../../arbiter/arbiter";
+import type { CastleDirection } from "../../../constants";
+import { useAppContext } from "../../../context/Context";
+import { generateCandidateMoves } from "../../../reducer/actions/move";
 
 interface PieceProps {
   rank: number;
@@ -11,7 +11,7 @@ interface PieceProps {
 
 export default function Piece({ rank, file, piece }: PieceProps) {
   const { appState, dispatch } = useAppContext();
-  const { turn, position } = appState;
+  const { turn, position, castleDirection } = appState;
   const currentPosition = position[position.length - 1];
   const prevPosition = position[position.length - 2];
 
@@ -23,9 +23,11 @@ export default function Piece({ rank, file, piece }: PieceProps) {
       target.style.display = "none";
     }, 0);
     if (turn === piece[0]) {
+      const direction = turn === "w" ? castleDirection.w : castleDirection.b;
       const candidateMoves = arbiter.getValidMoves(
         currentPosition,
         prevPosition,
+        direction,
         piece,
         rank,
         file
